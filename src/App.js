@@ -13,27 +13,35 @@ import {
   ListItemButton,
   ListItemText,
 } from '@mui/material';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogContentText from '@mui/material/DialogContentText';
+import DialogTitle from '@mui/material/DialogTitle';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import SportsMmaIcon from '@mui/icons-material/SportsMma';
+import EditIcon from '@mui/icons-material/Edit';
+import Grid from '@mui/material/Grid2';
 import { toast } from 'react-toastify';
 
 function App() {
   const [speed, setSpeed] = useState(50);
   const [selectedCombination, setSelectedCombination] = useState(0);
-  const [espIp, setEspIp] = useState("");
+  const [espIp, setEspIp] = useState("192.168.4.1");
+  const [editOpen, setEditOpen] = useState(false);
+  const [currentPunches, setCurrentPunches] = useState([]);
+  const [combinations, setCombinations] = useState([
+    { id: 0, label: 'Combinacion 1', value: [1, 2, 3] },
+    { id: 1, label: 'Combinacion 2', value: [0, 2, 3] },
+    { id: 2, label: 'Combinacion 3', value: [0, 1, 3] },
+    { id: 3, label: 'Combinacion 4', value: [0, 1, 2] },
+    { id: 4, label: 'Random', value: [] }
+  ])
 
   const punches = ["Jab", "Recto", "Gancho I", "Gancho D"]
 
   // List of available combinations
-  const combinations = [
-    { id: 0, label: '1-2-3', value: [1, 2, 3] },
-    { id: 1, label: '1-2-5', value: [0, 2, 3] },
-    { id: 2, label: '2-3-4', value: [0, 1, 3] },
-    { id: 3, label: '3-4-5', value: [0, 1, 2] },
-    { id: 4, label: 'Random', value: [] }
-  ];
-
   useEffect(() => {
-    searchDevice();
     return () => {
     }
   }, [])
@@ -46,12 +54,11 @@ function App() {
     const requestOptions = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      mode: 'no-cors',
       body: JSON.stringify({ value: combinations[id].value })
     };
     try {
-      fetch('http://192.168.1.34/combination', requestOptions)
-        .then(response => response.json())
-        .then(data => this.setState({ postId: data.id }));
+      fetch(`http://${espIp}/combination`, requestOptions);
     } catch {
       toast.error("Error al seleccionar una combinación!");
     }
@@ -62,41 +69,41 @@ function App() {
     const requestOptions = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      mode: 'no-cors',
       body: JSON.stringify({ value: newValue })
     };
     try {
-      fetch(`http://${espIp}/speed`, requestOptions)
-        .then(response => response.json())
-        .then(data => this.setState({ postId: data.id }));
+      fetch(`http://${espIp}/speed`, requestOptions);
     } catch {
       toast.error("Error al establecer la velocidad!");
     }
   };
 
-  const searchDevice = () => {
-    const requestOptions = {
-      method: 'GET',
-      headers: { 'Content-Type': 'application/json' },
-    };
-    for (let i = 0; i < 256; i++) {
-      try {
-        fetch(`http://192.168.1.${i}/check`, requestOptions)
-          .then(response => response.json())
-          .then(data => this.setState({ postId: data.id }));
 
-        // If it succeds, set esp32 ip
-        setEspIp(`192.168.1.${i}`)
-        return
-      } catch {
-        toast.error("Error al establecer la velocidad!");
-      }
+  const idsToPunches = (ids) => {
+    return ids.map((id, i) => punches[id] + (i < ids.length ? ", " : ""))
+  }
+
+  const handleEdit = () => {
+    setEditOpen(true);
+  }
+
+  const handleClose = () => {
+    setCurrentPunches([])
+    setEditOpen(false);
+  }
+
+  const addPunch = (id) => {
+    if (currentPunches.length < 9) {
+      setCurrentPunches([...currentPunches, id]);
     }
   }
 
-  const idsToPunches = (ids) => {
-    return ids.map((i, id) => punches[id] + (i < ids.length ? ", " : ""))
+  const handleSavePunches = () => {
+    combinations[selectedCombination].value = currentPunches;
+    setCombinations(combinations);
+    handleClose();
   }
-
 
   return (
     <Box sx={{ height: '100vh', backgroundColor: '#121212', padding: 2 }}>
@@ -112,6 +119,44 @@ function App() {
           <Button color="inherit" sx={{ color: '#F5F5F5' }}>Save</Button>
         </Toolbar>
       </AppBar>
+
+      <Dialog
+        open={editOpen}
+        onClose={handleClose}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+        color='secondary'
+      >
+        <DialogTitle id="alert-dialog-title">
+          {"Editar combinacion"}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ flexGrow: 1 }}>
+            <Grid container spacing={1}>
+              <Grid size={6}>
+                <Button variant='outlined' color="success" onClick={() => addPunch(0)}><SportsMmaIcon />Jab</Button>
+              </Grid>
+              <Grid size={6}>
+                <Button variant='outlined' color="success" onClick={() => addPunch(1)}>Recto<SportsMmaIcon /></Button>
+              </Grid>
+              <Grid size={6}>
+                <Button variant='outlined' color="success" onClick={() => addPunch(2)}><SportsMmaIcon />Gancho I</Button>
+              </Grid>
+              <Grid size={6}>
+                <Button variant='outlined' color="success" onClick={() => addPunch(3)}>Gancho D<SportsMmaIcon /></Button>
+              </Grid>
+            </Grid>
+          </Box>
+          <div style={{ paddingTop: "1rem", paddingBottom: "1rem" }}></div>
+          {idsToPunches(currentPunches).map((currentPunch, i) => <Button>{i + 1}- {currentPunch}</Button>)}
+        </DialogContent>
+        <DialogActions>
+          <Button color='success' onClick={handleClose}>Cancelar</Button>
+          <Button color='success' onClick={handleSavePunches} autoFocus>
+            Guardar
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Combination Section */}
       <Box sx={{ color: '#E0E0E0', paddingTop: 4 }}>
@@ -149,6 +194,8 @@ function App() {
                   primaryTypographyProps={{ fontWeight: selectedCombination === combination.id ? 'bold' : 'normal' }}
                   secondaryTypographyProps={{ color: 'white' }}
                 />
+
+                {combination.label != "Random" ? <IconButton color="success"><EditIcon onClick={handleEdit} /></IconButton> : <></>}
               </ListItemButton>
             </ListItem>
           ))}
@@ -167,7 +214,7 @@ function App() {
           valueLabelDisplay="auto"
           sx={{
             color: '#8BC34A',
-            width: '80%',
+            width: '100%',
             marginTop: 2,
             '& .MuiSlider-thumb': { boxShadow: '0 0 8px rgba(0,0,0,0.2)' },
           }}
